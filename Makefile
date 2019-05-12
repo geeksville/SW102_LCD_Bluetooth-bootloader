@@ -7,7 +7,7 @@ PROJ_DIR := .
 
 # OpenOCD configuration. Change OPENOCD_PATH to your system setting.
 OPENOCD_PATH := E:/nrf5/Toolchain/OpenOCD/0.10.0-12-20190422-2015/bin
-OPENOCD := $(OPENOCD_PATH)/openocd.exe -f ../scripts/interface/stlink.cfg -f ../scripts/target/nrf51.cfg
+OPENOCD := '$(OPENOCD_PATH)/openocd.exe' -f ../scripts/interface/stlink.cfg -f ../scripts/target/nrf51.cfg
 
 $(OUTPUT_DIRECTORY)/sw102_bootloader.out: \
   LINKER_SCRIPT  := $(PROJ_DIR)/gcc_nrf51.ld
