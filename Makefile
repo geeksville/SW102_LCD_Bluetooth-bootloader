@@ -6,8 +6,14 @@ SDK_ROOT := ./nRF5_SDK_12.3.0
 PROJ_DIR := .
 
 # OpenOCD configuration. Change OPENOCD_PATH to your system setting.
-OPENOCD_PATH := E:/nrf5/Toolchain/OpenOCD/0.10.0-12-20190422-2015/bin
-OPENOCD := '$(OPENOCD_PATH)/openocd.exe' -f ../scripts/interface/stlink.cfg -f ../scripts/target/nrf51.cfg
+# OPENOCD_PATH := E:/nrf5/Toolchain/OpenOCD/0.10.0-12-20190422-2015/bin
+# OPENOCD_BIN := openocd.exe
+
+OPENOCD_PATH := /usr/local/share/openocd/bin
+OPENOCD_BIN := openocd
+
+OPENOCD := '$(OPENOCD_PATH)/$(OPENOCD_BIN)' -f $(OPENOCD_PATH)/../scripts/interface/stlink.cfg -f $(OPENOCD_PATH)/../scripts/target/nrf51.cfg
+
 
 $(OUTPUT_DIRECTORY)/sw102_bootloader.out: \
   LINKER_SCRIPT  := $(PROJ_DIR)/gcc_nrf51.ld
