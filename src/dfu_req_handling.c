@@ -101,7 +101,7 @@ static bool m_valid_init_packet_present;                /**< Global variable hol
 
 
 
-
+#ifdef CHECK_SIGNATURE
 static const nrf_crypto_key_t crypto_key_pk =
 {
     .p_le_data = (uint8_t *) pk,
@@ -109,10 +109,11 @@ static const nrf_crypto_key_t crypto_key_pk =
 };
 
 static nrf_crypto_key_t crypto_sig;
+__ALIGN(4) static uint8_t sig[64];
+
 __ALIGN(4) static uint8_t hash[32];
 static nrf_crypto_key_t hash_data;
-
-__ALIGN(4) static uint8_t sig[64];
+#endif
 
 dfu_hash_type_t m_image_hash_type;
 
@@ -138,6 +139,7 @@ static void dfu_data_write_handler(fs_evt_t const * const evt, fs_ret_t result)
 
 static void pb_decoding_callback(pb_istream_t *str, uint32_t tag, pb_wire_type_t wire_type, void *iter)
 {
+#ifdef CHECK_SIGNATURE
     pb_field_iter_t* p_iter = (pb_field_iter_t *) iter;
 
     // match the beginning of the init command
@@ -156,6 +158,7 @@ static void pb_decoding_callback(pb_istream_t *str, uint32_t tag, pb_wire_type_t
 
         NRF_LOG_INFO("PB: Init data len: %d\r\n", hash_data.len);
     }
+#endif
 }
 
 
@@ -166,11 +169,13 @@ static nrf_dfu_res_code_t dfu_handle_prevalidate(dfu_signed_command_t const * p_
     uint32_t                    hw_version = NRF_DFU_HW_VERSION;
     uint32_t                    fw_version = 0;
 
+#ifdef CHECK_SIGNATURE
     // check for init command found during decoding
     if(!p_init_cmd || !init_cmd_len)
     {
         return NRF_DFU_RES_CODE_OPERATION_FAILED;
     }
+#endif
 
 #ifndef NRF_DFU_DEBUG_VERSION
     if(p_init->has_is_debug && p_init->is_debug == true)
@@ -272,6 +277,7 @@ static nrf_dfu_res_code_t dfu_handle_prevalidate(dfu_signed_command_t const * p_
     // Check the signature
     switch (p_command->signature_type)
     {
+#ifdef CHECK_SIGNATURE
         case DFU_SIGNATURE_TYPE_ECDSA_P256_SHA256:
             {
                 // prepare the actual hash destination.
@@ -314,6 +320,11 @@ static nrf_dfu_res_code_t dfu_handle_prevalidate(dfu_signed_command_t const * p_
                 NRF_LOG_INFO("Image verified\r\n");
             }
             break;
+#else
+        case DFU_SIGNATURE_TYPE_ECDSA_P256_SHA256:
+            break;
+#endif
+
 
         default:
             return NRF_DFU_RES_CODE_OPERATION_FAILED;
@@ -384,8 +395,10 @@ static nrf_dfu_res_code_t dfu_handle_prevalidate(dfu_signed_command_t const * p_
             return NRF_DFU_RES_CODE_OPERATION_FAILED;
     }
 
+#ifdef CHECK_SIGNATURE
     // SHA256 is the only supported hash
     memcpy(&hash[0], &p_init->hash.hash.bytes[0], 32);
+#endif
 
     // Instead of checking each type with has-check, check the result of the size_req to
     // Validate its content.
@@ -414,13 +427,14 @@ static nrf_dfu_res_code_t dfu_handle_prevalidate(dfu_signed_command_t const * p_
  */
 static nrf_dfu_res_code_t nrf_dfu_postvalidate(dfu_init_command_t * p_init)
 {
-    uint32_t                   err_code;
     nrf_dfu_res_code_t         res_code = NRF_DFU_RES_CODE_SUCCESS;
     nrf_dfu_bank_t           * p_bank;
 
     switch (p_init->hash.hash_type)
     {
+#ifdef CHECK_SIGNATURE
         case DFU_HASH_TYPE_SHA256:
+            uint32_t                   err_code;
             hash_data.p_le_data = &hash[0];
             hash_data.len = sizeof(hash);
             err_code = nrf_crypto_hash_compute(NRF_CRYPTO_HASH_ALG_SHA256, (uint8_t*)m_firmware_start_addr, m_firmware_size_req, &hash_data);
@@ -435,7 +449,14 @@ static nrf_dfu_res_code_t nrf_dfu_postvalidate(dfu_init_command_t * p_init)
 
                 res_code = NRF_DFU_RES_CODE_INVALID_OBJECT;
             }
+            break;            
+#else
+        case DFU_HASH_TYPE_NO_HASH:
+        case DFU_HASH_TYPE_SHA256:
             break;
+        case DFU_HASH_TYPE_CRC:
+            break; // FIXME kevinh - implementation needed
+#endif
 
         default:
             res_code = NRF_DFU_RES_CODE_OPERATION_FAILED;
@@ -547,7 +568,11 @@ static nrf_dfu_res_code_t dfu_handle_signed_command(dfu_signed_command_t const *
         return NRF_DFU_RES_CODE_INVALID_OBJECT;
     }
 
+#ifdef CHECK_SIGNATURE
     ret_val = dfu_handle_prevalidate(p_command, p_stream, hash_data.p_le_data, hash_data.len);
+#else
+    ret_val = dfu_handle_prevalidate(p_command, p_stream, NULL, 0);
+#endif
     if(ret_val == NRF_DFU_RES_CODE_SUCCESS)
     {
         NRF_LOG_INFO("Prevalidate OK.\r\n");
@@ -580,8 +605,10 @@ static uint32_t dfu_decode_commmand(void)
     // Attach our callback to follow the field decoding
     stream.decoding_callback = pb_decoding_callback;
     // reset the variable where the init pointer and length will be stored.
+#ifdef CHECK_SIGNATURE
     hash_data.p_le_data = NULL;
     hash_data.len = 0;
+#endif
 
     if (!pb_decode(&stream, dfu_packet_fields, &packet))
     {
