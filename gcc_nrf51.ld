@@ -10,8 +10,12 @@ MEMORY
    *  BOOTLOADER_REGION_START found in dfu_types.h. The system is prevented from starting up if
    *  those values do not match. The check is performed in main.c, see
    *  APP_ERROR_CHECK_BOOL(*((uint32_t *)NRF_UICR_BOOT_START_ADDRESS) == BOOTLOADER_REGION_START);
+
+   Note: SDK12 usuallally uses as start addr of 0x3ac00 with a length of 20k.  However, we want to
+   build a bootloader which can be installed and work on old SDK9 devices acquired by @eyebyesickle.  Which require a start
+   address of 0x3B000 and a length of 0x4c00 (19456 decimal)
    */
-  FLASH (rx) : ORIGIN = 0x0003AC00, LENGTH = 20k
+  FLASH (rx) : ORIGIN = 0x0003B000, LENGTH = 0x04c00
   /* For debugging */
   //FLASH (rx) : ORIGIN = 0x00030000, LENGTH = 63k
   
