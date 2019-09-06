@@ -24,6 +24,9 @@ bool nrf_dfu_enter_check(void)
 
   /* Buttonless DFU seems kind of useless for us? */
   /* Because as soon as we reset, BUTTON_PWR__PIN resets too and power gets lost */
+  // Update from kevinh: no, based on looking at the mfg bootloader this should work.  Because when the appload
+  // reenters the bootloader it isn't doing a true reset, just jumping to the beginning of the bootloader 
+  // (so GPIOs don't change)
   if (s_dfu_settings.enter_buttonless_dfu == 1)
   {
     s_dfu_settings.enter_buttonless_dfu = 0;
